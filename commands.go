@@ -62,6 +62,8 @@ func (c *ConnectCmd) Run(ctx *Context) error {
 
 	println("Devices connected successfully, use MAC to interact.")
 
+	device.Disconnect()
+
 	return nil
 }
 
@@ -90,6 +92,8 @@ func (mu *UpCmd) Run(ctx *Context) error {
 	}
 
 	_, err = move_up_char.WriteWithoutResponse(ACTION_MOVE_UP)
+
+	device.Disconnect()
 
 	return err
 }
@@ -120,5 +124,70 @@ func (mu *DownCmd) Run(ctx *Context) error {
 
 	_, err = move_up_char.WriteWithoutResponse(ACTION_MOVE_DOWN)
 
+	device.Disconnect()
+
 	return err
+}
+
+type GotoCmd struct {
+	MAC      string `required help:"The mac address of the bluetooth device."`
+	Position string `arg:"" name:"position" help:"Position in CM or Inc"`
+}
+
+func (mu *GotoCmd) Run(ctx *Context) error {
+
+	device, err := ConnectDesk(mu.MAC)
+
+	if err != nil {
+		return err
+	}
+
+	position, err := PositionArgParser(mu.Position)
+
+	if err != nil {
+		return err
+	}
+
+	err = GoTo(device, position)
+
+	device.Disconnect()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type StatusCmd struct {
+	MAC string `required help:"The mac address of the bluetooth device."`
+}
+
+func (mu *StatusCmd) Run(ctx *Context) error {
+	device, err := ConnectDesk(mu.MAC)
+
+	if err != nil {
+		return err
+	}
+
+	var current_desk_position DeskPosition
+
+	err = TrackDeskPosition(device, &current_desk_position)
+
+	in_cm := (current_desk_position.value + uint16(OFFSET_POSITION)) / 100
+	in_inch := float64(current_desk_position.value+uint16(OFFSET_POSITION)) / 100.0 / 2.54
+
+	print(`Current hight (absolute): `)
+
+	print(in_cm, `cm | `)
+	print(int(in_inch), `inches`)
+	println()
+
+	device.Disconnect()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
